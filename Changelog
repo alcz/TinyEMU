@@ -1,3 +1,10 @@
+2020-06-05 (alcz):
+- Makefile.js extended to build x86 (cpu emulator is still missing)
+- updated for recent emscripten:
+  Runtime.dynCall -> dynCall
+  Pointer_stringify -> UTF8String
+  plus some linker exports
+
 2019-12-21:
 
 - added complete JSLinux demo
