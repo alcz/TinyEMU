@@ -1,4 +1,7 @@
 2020-06-05 (alcz):
+- added -emu-cpuid command line parameter which keeps the x86 KVM
+  flavour CPUID more compatible to current x86 cpu emulator
+- keep console open even for framebuffer VMs
 - Makefile.js extended to build x86 (cpu emulator is still missing)
 - updated for recent emscripten:
   Runtime.dynCall -> dynCall

@@ -101,6 +101,7 @@ typedef struct {
 
     char *cmdline; /* bios or kernel command line */
     BOOL accel_enable; /* enable acceleration (KVM) */
+    BOOL cpuid_like_emu; /* KVM will expose only CPU features that are in emulator too */
     char *input_device; /* NULL means no input */
     
     /* kernel, bios and other auxiliary files */

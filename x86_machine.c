@@ -1302,6 +1302,7 @@ typedef struct PCMachine {
     PS2KbdState *ps2_kbd;
 
 #ifdef USE_KVM
+    BOOL cpuid_like_emu;
     BOOL kvm_enabled;
     int kvm_fd;
     int vm_fd;
@@ -1503,7 +1504,8 @@ static uint32_t ld_port(void *opaque, uint32_t port1, int size_log2)
 
 static void pc_machine_set_defaults(VirtMachineParams *p)
 {
-    p->accel_enable = TRUE;
+    p->accel_enable   = TRUE;
+    p->cpuid_like_emu = FALSE;
 }
 
 #ifdef USE_KVM
@@ -1512,8 +1514,20 @@ static void sigalrm_handler(int sig)
 {
 }
 
+#define CPUID_FP87 (1 << 0)
+#define CPUID_TSC  (1 << 4)
+#define CPUID_MSR  (1 << 5)
+#define CPUID_PAE  (1 << 6)
+#define CPUID_CX8  (1 << 8)
 #define CPUID_APIC (1 << 9)
+#define CPUID_CMOV (1 << 15)
 #define CPUID_ACPI (1 << 22)
+
+/* supported by emulator
+   fpu tsc msr pae cx8 cmov rdtscp cpuid svm npt */
+
+#define TEMU_FEAT ( CPUID_FP87 | CPUID_TSC | CPUID_MSR | CPUID_CX8 \
+          | CPUID_CMOV | CPUID_PAE )
 
 static void kvm_set_cpuid(PCMachine *s)
 {
@@ -1530,11 +1544,33 @@ static void kvm_set_cpuid(PCMachine *s)
         exit(1);
     }
 
-    for(i = 0; i < kvm_cpuid->nent; i++) {
-        ent = &kvm_cpuid->entries[i];
-        /* remove the APIC & ACPI to be in sync with the emulator */
-        if (ent->function == 1 || ent->function == 0x80000001) {
-            ent->edx &= ~(CPUID_APIC | CPUID_ACPI);
+    if (s->cpuid_like_emu) {
+        for(i = 0; i < kvm_cpuid->nent; i++) {
+            ent = &kvm_cpuid->entries[i];
+            /* even more in sync with the emulator */
+            if (ent->function == 1) {
+                ent->edx = TEMU_FEAT;
+                ent->ecx = 0;
+            }
+            else if (ent->function == 6)
+                ent->eax = 0;
+            else if (ent->function == 7)
+                ent->ebx = 0;
+            else if (ent->function == 0x80000001)
+            {
+                ent->ecx = 0;
+                ent->edx = 0;
+            }
+            else if (ent->function == 0xC0000001)
+                ent->edx = 0;
+        }
+    } else {
+        for(i = 0; i < kvm_cpuid->nent; i++) {
+            ent = &kvm_cpuid->entries[i];
+            /* remove the APIC & ACPI to be in sync with the emulator */
+            if (ent->function == 1 || ent->function == 0x80000001) {
+                ent->edx &= ~(CPUID_APIC | CPUID_ACPI);
+             }
         }
     }
     
@@ -1980,6 +2016,7 @@ static VirtMachine *pc_machine_init(const VirtMachineParams *p)
 
 #ifdef USE_KVM
     if (p->accel_enable) {
+        s->cpuid_like_emu = p->cpuid_like_emu;
         kvm_init(s);
     }
 #endif

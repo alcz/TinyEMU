@@ -609,13 +609,14 @@ static struct option options[] = {
     { "append", required_argument },
     { "no-accel", no_argument },
     { "build-preload", required_argument },
+    { "emu-cpuid", no_argument },
     { NULL },
 };
 
 void help(void)
 {
     printf("temu version " CONFIG_VERSION ", Copyright (c) 2016-2018 Fabrice Bellard\n"
-           "usage: riscvemu [options] config_file\n"
+           "usage: temu [options] config_file\n"
            "options are:\n"
            "-m ram_size       set the RAM size in MB\n"
            "-rw               allow write access to the disk image (default=snapshot)\n"
@@ -623,6 +624,7 @@ void help(void)
            "                  emulated software\n"
            "-append cmdline   append cmdline to the kernel command line\n"
            "-no-accel         disable VM acceleration (KVM, x86 machine only)\n"
+           "-emu-cpuid        limit CPUID features in KVM to match those of the emulator\n"
            "\n"
            "Console keys:\n"
            "Press C-a x to exit the emulator, C-a h to get some help.\n");
@@ -649,12 +651,13 @@ int main(int argc, char **argv)
     VirtMachine *s;
     const char *path, *cmdline, *build_preload_file;
     int c, option_index, i, ram_size, accel_enable;
-    BOOL allow_ctrlc;
+    BOOL allow_ctrlc, cpuid_like_emu;
     BlockDeviceModeEnum drive_mode;
     VirtMachineParams p_s, *p = &p_s;
 
     ram_size = -1;
     allow_ctrlc = FALSE;
+    cpuid_like_emu = FALSE;
     (void)allow_ctrlc;
     drive_mode = BF_MODE_SNAPSHOT;
     accel_enable = -1;
@@ -684,6 +687,9 @@ int main(int argc, char **argv)
                 break;
             case 6: /* build-preload */
                 build_preload_file = optarg;
+                break;
+            case 7: /* emu-cpuid */
+                cpuid_like_emu = TRUE;
                 break;
             default:
                 fprintf(stderr, "unknown option index: %d\n", option_index);
@@ -723,6 +729,8 @@ int main(int argc, char **argv)
     }
     if (accel_enable != -1)
         p->accel_enable = accel_enable;
+    if(accel_enable)
+        p->cpuid_like_emu = cpuid_like_emu;
     if (cmdline) {
         vm_add_cmdline(p, cmdline);
     }
@@ -805,7 +813,7 @@ int main(int argc, char **argv)
 #ifdef CONFIG_SDL
     if (p->display_device) {
         sdl_init(p->width, p->height);
-    } else
+    } /* else */
 #endif
     {
 #ifdef _WIN32
